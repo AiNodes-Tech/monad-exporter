@@ -1,4 +1,4 @@
-# monad-exporter
+# Monad-exporter
 
 `monad-exporter` exposes a Prometheus `/metrics` HTTP endpoint and publishes Monad node status metrics.
 
