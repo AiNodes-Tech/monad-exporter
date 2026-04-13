@@ -226,7 +226,9 @@ func (c *Client) getValidatorSetPage(ctx context.Context, method string, startIn
 	return &PaginatedValSet{IsDone: isDone, NextIndex: nextIndex, ValIDs: valIDs}, nil
 }
 
-// CollectAllValidatorIDs paginates until isDone (next start = nextIndex+1 per Monad docs).
+// CollectAllValidatorIDs paginates until isDone.
+// On-chain, nextIndex is the start index for the next page (same value to pass as startIndex),
+// not lastInclusive+1; using nextIndex+1 skips one slot per page (e.g. 199 validators for a set of 200).
 func (c *Client) CollectAllValidatorIDs(ctx context.Context, method string) ([]uint64, error) {
 	var all []uint64
 	start := uint32(0)
@@ -245,7 +247,7 @@ func (c *Client) CollectAllValidatorIDs(ctx context.Context, method string) ([]u
 		if page.IsDone {
 			break
 		}
-		start = page.NextIndex + 1
+		start = page.NextIndex
 	}
 	return all, nil
 }
