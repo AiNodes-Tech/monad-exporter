@@ -17,8 +17,8 @@ type Config struct {
 	HTTPTimeout         time.Duration
 	ControlPanelSock    string
 	MPTStorage          string
-	RPCListenPort  string
-	EnableKeystore bool
+	RPCListenPort       string
+	EnableKeystore      bool
 	// SecpPublicKey is set once at process startup when EnableKeystore is true (see main).
 	SecpPublicKey string
 
@@ -26,6 +26,12 @@ type Config struct {
 	EnableStaking  bool
 	StakingAddress string
 	ValidatorID    uint64
+
+	// CoinGecko (optional spot price for MON vs USD)
+	EnableCoinGecko   bool
+	CoinGeckoBaseURL  string
+	CoinGeckoCoinID   string
+	CoinGeckoCacheTTL time.Duration
 }
 
 func Load() *Config {
@@ -39,7 +45,7 @@ func Load() *Config {
 		ControlPanelSock:    "",
 		MPTStorage:          firstNonEmpty(os.Getenv("MPT_STORAGE"), "/dev/triedb"),
 		RPCListenPort:       firstNonEmpty(os.Getenv("RPC_LISTEN_PORT"), "8080"),
-		EnableKeystore: os.Getenv("MONAD_EXPORTER_ENABLE_KEYSTORE") == "1",
+		EnableKeystore:      os.Getenv("MONAD_EXPORTER_ENABLE_KEYSTORE") == "1",
 	}
 	if v := os.Getenv("MONAD_EXPORTER_HTTP_TIMEOUT"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
@@ -58,6 +64,16 @@ func Load() *Config {
 	if v := os.Getenv("VALIDATOR_ID"); v != "" {
 		if id, err := strconv.ParseUint(strings.TrimSpace(v), 10, 64); err == nil {
 			c.ValidatorID = id
+		}
+	}
+
+	c.EnableCoinGecko = os.Getenv("MONAD_EXPORTER_ENABLE_COINGECKO") == "1"
+	c.CoinGeckoBaseURL = strings.TrimSuffix(firstNonEmpty(os.Getenv("MONAD_EXPORTER_COINGECKO_BASE_URL"), "https://api.coingecko.com/api/v3"), "/")
+	c.CoinGeckoCoinID = strings.TrimSpace(firstNonEmpty(os.Getenv("MONAD_EXPORTER_COINGECKO_COIN_ID"), "monad"))
+	c.CoinGeckoCacheTTL = 90 * time.Second
+	if v := os.Getenv("MONAD_EXPORTER_COINGECKO_CACHE_TTL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			c.CoinGeckoCacheTTL = d
 		}
 	}
 

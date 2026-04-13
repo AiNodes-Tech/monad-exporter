@@ -39,10 +39,10 @@ type Snapshot struct {
 	ExternalBlock   uint64
 	ExternalBlockOK bool
 
-	BlockDiff    float64
-	BlockDiffOK  bool
-	InSync       float64 // 1 or 0
-	InSyncOK     bool
+	BlockDiff   float64
+	BlockDiffOK bool
+	InSync      float64 // 1 or 0
+	InSyncOK    bool
 
 	Peers   float64
 	PeersOK bool
@@ -86,18 +86,32 @@ type Snapshot struct {
 	CruftNext      string
 
 	// Staking (eth_call to Monad staking precompile; MONAD_EXPORTER_ENABLE_STAKING=1)
-	StakingExecutionCountOK       bool
-	StakingConsensusCountOK       bool
-	StakingValidatorsExecution    float64
-	StakingValidatorsConsensus    float64
-	StakingValidatorsInactiveExec float64
-	StakingValidatorOK           bool // getValidator
-	StakingValidatorPoolStakeMON float64
-	StakingCommissionRatio        float64
-	StakingValidatorUnclaimedRewardsMON float64
-	StakingValidatorActiveConsensus     float64 // 1 or 0: id in getConsensusValidatorSet
-	StakingValidatorActiveConsensusOK   bool
-	StakingValidatorAuthAddress         string // getValidator authAddress (hex)
+	StakingExecutionCountOK                 bool
+	StakingConsensusCountOK                 bool
+	StakingValidatorsExecution              float64
+	StakingValidatorsConsensus              float64
+	StakingValidatorsInactiveExec           float64
+	StakingValidatorOK                      bool // getValidator
+	StakingValidatorPoolStakeMON            float64
+	StakingCommissionRatio                  float64
+	StakingValidatorUnclaimedRewardsMON     float64
+	StakingValidatorActiveConsensus         float64 // 1 or 0: id in getConsensusValidatorSet
+	StakingValidatorActiveConsensusOK       bool
+	StakingValidatorAuthAddress             string // getValidator authAddress (hex)
+	StakingValidatorConsensusStakeMON       float64
+	StakingValidatorSnapshotStakeMON        float64
+	StakingAuthDelegatorOK                  bool
+	StakingAuthDelegatorStakeMON            float64
+	StakingAuthDelegatorDeltaStakeMON       float64
+	StakingAuthDelegatorNextDeltaStakeMON   float64
+	StakingAuthDelegatorDeltaEpoch          float64
+	StakingAuthDelegatorNextDeltaEpoch      float64
+	StakingAuthDelegatorUnclaimedRewardsMON float64
+	StakingAuthWalletBalanceOK              bool
+	StakingAuthWalletBalanceMON             float64
+
+	CoinGeckoPriceUSDOK bool
+	CoinGeckoPriceUSD   float64
 }
 
 func newSnapshot() *Snapshot {
@@ -316,6 +330,10 @@ func Gather(ctx context.Context, cfg *config.Config) *Snapshot {
 
 	if cfg.EnableStaking {
 		gatherStaking(ctx, cfg, out, rc)
+	}
+
+	if cfg.EnableCoinGecko {
+		gatherCoinGecko(ctx, cfg, out, client)
 	}
 
 	return out

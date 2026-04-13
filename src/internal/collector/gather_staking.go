@@ -73,8 +73,31 @@ func gatherStaking(ctx context.Context, cfg *config.Config, out *Snapshot, rc *r
 		return
 	}
 	out.StakingValidatorPoolStakeMON = staking.WeiToMon(val.StakeWei)
+	out.StakingValidatorConsensusStakeMON = staking.WeiToMon(val.ConsensusStakeWei)
+	out.StakingValidatorSnapshotStakeMON = staking.WeiToMon(val.SnapshotStakeWei)
 	out.StakingCommissionRatio = staking.CommissionRatio(val.CommissionWei)
 	out.StakingValidatorUnclaimedRewardsMON = staking.WeiToMon(val.UnclaimedRewardsWei)
 	out.StakingValidatorAuthAddress = val.AuthAddress.Hex()
 	out.StakingValidatorOK = true
+
+	del, err := sc.GetDelegator(ctx, cfg.ValidatorID, val.AuthAddress)
+	if err != nil {
+		out.errf("staking_getDelegator_auth", "%v", err)
+	} else {
+		out.StakingAuthDelegatorOK = true
+		out.StakingAuthDelegatorStakeMON = staking.WeiToMon(del.StakeWei)
+		out.StakingAuthDelegatorDeltaStakeMON = staking.WeiToMon(del.DeltaStakeWei)
+		out.StakingAuthDelegatorNextDeltaStakeMON = staking.WeiToMon(del.NextDeltaStakeWei)
+		out.StakingAuthDelegatorDeltaEpoch = float64(del.DeltaEpoch)
+		out.StakingAuthDelegatorNextDeltaEpoch = float64(del.NextDeltaEpoch)
+		out.StakingAuthDelegatorUnclaimedRewardsMON = staking.WeiToMon(del.UnclaimedRewardsWei)
+	}
+
+	balWei, err := rc.EthGetBalance(ctx, val.AuthAddress.Hex(), "latest")
+	if err != nil {
+		out.errf("staking_eth_getBalance_auth", "%v", err)
+	} else {
+		out.StakingAuthWalletBalanceMON = staking.WeiToMon(balWei)
+		out.StakingAuthWalletBalanceOK = true
+	}
 }

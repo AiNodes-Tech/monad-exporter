@@ -121,6 +121,8 @@ func (c *NodeCollector) Collect(ch chan<- prometheus.Metric) {
 	inactiveOK := en && s.StakingExecutionCountOK && s.StakingConsensusCountOK
 	valOK := en && s.StakingValidatorOK
 	activeOK := en && s.StakingValidatorActiveConsensusOK
+	delegOK := en && s.StakingAuthDelegatorOK
+	balOK := en && s.StakingAuthWalletBalanceOK
 	vid := strconv.FormatUint(c.cfg.ValidatorID, 10)
 	ch <- prometheus.MustNewConstMetric(stakingValidatorsExecutionDesc, prometheus.GaugeValue, valOrNaN(execOK, s.StakingValidatorsExecution))
 	ch <- prometheus.MustNewConstMetric(stakingValidatorsConsensusDesc, prometheus.GaugeValue, valOrNaN(consOK, s.StakingValidatorsConsensus))
@@ -128,8 +130,20 @@ func (c *NodeCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(stakingValidatorActiveDesc, prometheus.GaugeValue, valOrNaN(activeOK, s.StakingValidatorActiveConsensus), vid)
 	ch <- prometheus.MustNewConstMetric(stakingValidatorInfoDesc, prometheus.GaugeValue, valOrNaN(valOK, 1), vid, truncate(s.StakingValidatorAuthAddress, 42))
 	ch <- prometheus.MustNewConstMetric(stakingValidatorPoolStakeMonDesc, prometheus.GaugeValue, valOrNaN(valOK, s.StakingValidatorPoolStakeMON))
+	ch <- prometheus.MustNewConstMetric(stakingValidatorConsensusStakeMonDesc, prometheus.GaugeValue, valOrNaN(valOK, s.StakingValidatorConsensusStakeMON))
+	ch <- prometheus.MustNewConstMetric(stakingValidatorSnapshotStakeMonDesc, prometheus.GaugeValue, valOrNaN(valOK, s.StakingValidatorSnapshotStakeMON))
 	ch <- prometheus.MustNewConstMetric(stakingCommissionRatioDesc, prometheus.GaugeValue, valOrNaN(valOK, s.StakingCommissionRatio))
 	ch <- prometheus.MustNewConstMetric(stakingValidatorUnclaimedRewardsMonDesc, prometheus.GaugeValue, valOrNaN(valOK, s.StakingValidatorUnclaimedRewardsMON))
+	ch <- prometheus.MustNewConstMetric(stakingAuthDelegatorStakeMonDesc, prometheus.GaugeValue, valOrNaN(delegOK, s.StakingAuthDelegatorStakeMON))
+	ch <- prometheus.MustNewConstMetric(stakingAuthDelegatorDeltaStakeMonDesc, prometheus.GaugeValue, valOrNaN(delegOK, s.StakingAuthDelegatorDeltaStakeMON))
+	ch <- prometheus.MustNewConstMetric(stakingAuthDelegatorNextDeltaStakeMonDesc, prometheus.GaugeValue, valOrNaN(delegOK, s.StakingAuthDelegatorNextDeltaStakeMON))
+	ch <- prometheus.MustNewConstMetric(stakingAuthDelegatorDeltaEpochDesc, prometheus.GaugeValue, valOrNaN(delegOK, s.StakingAuthDelegatorDeltaEpoch))
+	ch <- prometheus.MustNewConstMetric(stakingAuthDelegatorNextDeltaEpochDesc, prometheus.GaugeValue, valOrNaN(delegOK, s.StakingAuthDelegatorNextDeltaEpoch))
+	ch <- prometheus.MustNewConstMetric(stakingAuthDelegatorUnclaimedRewardsMonDesc, prometheus.GaugeValue, valOrNaN(delegOK, s.StakingAuthDelegatorUnclaimedRewardsMON))
+	ch <- prometheus.MustNewConstMetric(stakingAuthWalletBalanceMonDesc, prometheus.GaugeValue, valOrNaN(balOK, s.StakingAuthWalletBalanceMON))
+
+	cgOK := c.cfg.EnableCoinGecko && s.CoinGeckoPriceUSDOK
+	ch <- prometheus.MustNewConstMetric(monadPriceUSDDesc, prometheus.GaugeValue, valOrNaN(cgOK, s.CoinGeckoPriceUSD))
 }
 
 func valOrNaN(ok bool, v float64) float64 {
@@ -177,8 +191,18 @@ func (c *NodeCollector) descs() []*prometheus.Desc {
 		stakingValidatorActiveDesc,
 		stakingValidatorInfoDesc,
 		stakingValidatorPoolStakeMonDesc,
+		stakingValidatorConsensusStakeMonDesc,
+		stakingValidatorSnapshotStakeMonDesc,
 		stakingCommissionRatioDesc,
 		stakingValidatorUnclaimedRewardsMonDesc,
+		stakingAuthDelegatorStakeMonDesc,
+		stakingAuthDelegatorDeltaStakeMonDesc,
+		stakingAuthDelegatorNextDeltaStakeMonDesc,
+		stakingAuthDelegatorDeltaEpochDesc,
+		stakingAuthDelegatorNextDeltaEpochDesc,
+		stakingAuthDelegatorUnclaimedRewardsMonDesc,
+		stakingAuthWalletBalanceMonDesc,
+		monadPriceUSDDesc,
 	}
 }
 
@@ -316,6 +340,16 @@ var (
 		"Validator execution pool stake from getValidator.stake, in MON.",
 		nil, nil,
 	)
+	stakingValidatorConsensusStakeMonDesc = prometheus.NewDesc(
+		"monad_exporter_staking_validator_consensus_stake_mon",
+		"Validator consensus stake from getValidator.consensusStake, in MON.",
+		nil, nil,
+	)
+	stakingValidatorSnapshotStakeMonDesc = prometheus.NewDesc(
+		"monad_exporter_staking_validator_snapshot_stake_mon",
+		"Validator snapshot stake from getValidator.snapshotStake, in MON.",
+		nil, nil,
+	)
 	stakingCommissionRatioDesc = prometheus.NewDesc(
 		"monad_exporter_staking_commission_ratio",
 		"Validator commission rate (commission/1e18 from getValidator), 0..1.",
@@ -323,7 +357,47 @@ var (
 	)
 	stakingValidatorUnclaimedRewardsMonDesc = prometheus.NewDesc(
 		"monad_exporter_staking_validator_unclaimed_rewards_mon",
-		"Validator unclaimedRewards from getValidator, in MON.",
+		"Validator-level unclaimedRewards from getValidator (not delegator position), in MON.",
+		nil, nil,
+	)
+	stakingAuthDelegatorStakeMonDesc = prometheus.NewDesc(
+		"monad_exporter_staking_auth_delegator_stake_mon",
+		"Auth wallet self-delegation stake from getDelegator(validatorId, authAddress).stake, in MON.",
+		nil, nil,
+	)
+	stakingAuthDelegatorDeltaStakeMonDesc = prometheus.NewDesc(
+		"monad_exporter_staking_auth_delegator_delta_stake_mon",
+		"Pending stake delta for auth as delegator (getDelegator.deltaStake), in MON.",
+		nil, nil,
+	)
+	stakingAuthDelegatorNextDeltaStakeMonDesc = prometheus.NewDesc(
+		"monad_exporter_staking_auth_delegator_next_delta_stake_mon",
+		"Next-epoch pending stake delta for auth as delegator (getDelegator.nextDeltaStake), in MON.",
+		nil, nil,
+	)
+	stakingAuthDelegatorDeltaEpochDesc = prometheus.NewDesc(
+		"monad_exporter_staking_auth_delegator_delta_epoch",
+		"Epoch associated with deltaStake for auth as delegator (getDelegator.deltaEpoch).",
+		nil, nil,
+	)
+	stakingAuthDelegatorNextDeltaEpochDesc = prometheus.NewDesc(
+		"monad_exporter_staking_auth_delegator_next_delta_epoch",
+		"Epoch associated with nextDeltaStake for auth as delegator (getDelegator.nextDeltaEpoch).",
+		nil, nil,
+	)
+	stakingAuthDelegatorUnclaimedRewardsMonDesc = prometheus.NewDesc(
+		"monad_exporter_staking_auth_delegator_unclaimed_rewards_mon",
+		"Unclaimed rewards for auth as delegator to self (getDelegator.unclaimedRewards), in MON.",
+		nil, nil,
+	)
+	stakingAuthWalletBalanceMonDesc = prometheus.NewDesc(
+		"monad_exporter_staking_auth_wallet_balance_mon",
+		"Native MON balance on validator auth address (eth_getBalance latest), in MON.",
+		nil, nil,
+	)
+	monadPriceUSDDesc = prometheus.NewDesc(
+		"monad_exporter_monad_price_usd",
+		"Spot price of configured CoinGecko coin in USD (/simple/price, cached).",
 		nil, nil,
 	)
 )

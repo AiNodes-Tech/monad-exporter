@@ -111,6 +111,7 @@ Optional:
 - `MONAD_EXPORTER_ENABLE_STAKING=1` - enable staking metrics
 - `MONAD_STAKING_ADDRESS` - staking precompile address (default: `0x0000000000000000000000000000000000001000`)
 - `VALIDATOR_ID` - validator id for staking metrics
+- `MONAD_EXPORTER_ENABLE_COINGECKO=1` - fetch MON/USD from CoinGecko (cached; see `MONAD_EXPORTER_COINGECKO_*` in `.env.example`)
 
 See the full template in `.env.example`.
 

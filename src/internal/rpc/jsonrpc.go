@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -111,4 +112,36 @@ func ParseHexUint64(s string) (uint64, error) {
 		return strconv.ParseUint(s[2:], 16, 64)
 	}
 	return strconv.ParseUint(s, 10, 64)
+}
+
+// ParseHexBigInt parses a hex quantity (e.g. eth_getBalance result).
+func ParseHexBigInt(s string) (*big.Int, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, fmt.Errorf("empty hex")
+	}
+	if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
+		s = s[2:]
+	}
+	if s == "" {
+		return big.NewInt(0), nil
+	}
+	b := new(big.Int)
+	if _, ok := b.SetString(s, 16); !ok {
+		return nil, fmt.Errorf("invalid hex int: %q", s)
+	}
+	return b, nil
+}
+
+// EthGetBalance returns account balance in wei at blockTag (e.g. "latest").
+func (c *Client) EthGetBalance(ctx context.Context, addressHex, blockTag string) (*big.Int, error) {
+	raw, err := c.call(ctx, "eth_getBalance", []interface{}{addressHex, blockTag})
+	if err != nil {
+		return nil, err
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return nil, err
+	}
+	return ParseHexBigInt(s)
 }
